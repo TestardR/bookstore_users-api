@@ -8,40 +8,46 @@ import (
 	"github.com/TestardR/bookstore_users-api/utils/errors"
 )
 
-var (
-	usersDB = make(map[int64]*User)
+const (
+	queryInsertUser = "INSERT INTO users(first_name, last_name, email, date_created) VALUES(?, ?, ?, ?, ?, ?);"
+	queryGetUser    = "SELECT id, first_name, last_name, email, date_created, status FROM users WHERE id=?;"
 )
 
 func (user *User) Get() *errors.RestErr {
-	if err := users_db.Client.Ping(); err != nil {
-		fmt.Println("ERROR", err)
-		panic(err)
+	stmt, err := users_db.Client.Prepare(queryGetUser)
+
+	if err != nil {
+		return errors.NewInternalServerError("error when tying to get user")
 	}
+	defer stmt.Close()
 
-	result := usersDB[user.Id]
-	if result == nil {
-		return errors.NewNotFoundError(fmt.Sprint("user %d not found", user.Id))
+	result := stmt.QueryRow(user.Id)
+
+	if getErr := result.Scan(&user.Id, &user.FirstName, &user.LastName, &user.Email, &user.DateCreated); getErr != nil {
+		return errors.NewInternalServerError("error when tying to get user")
 	}
-
-	user.Id = result.Id
-	user.FirstName = result.FirstName
-	user.LastName = result.LastName
-	user.Email = result.Email
-	user.DateCreated = result.DateCreated
-
 	return nil
 }
 
 func (user *User) Save() *errors.RestErr {
-	current := usersDB[user.Id]
-	if current != nil {
-		if current.Email == user.Email {
-			return errors.NewBadRequestError(fmt.Sprintf("email %v already exists", user.Email))
-		}
-		return errors.NewBadRequestError(fmt.Sprintf("user %d already exists", user.Id))
+	stmt, err := users_db.Client.Prepare(queryInsertUser)
+	if err != nil {
+		return errors.NewInternalServerError(err.Error())
 	}
+	defer stmt.Close()
+
 	user.DateCreated = date_utils.GetNowString()
 
-	usersDB[user.Id] = user
+	insertResult, saveErr := stmt.Exec(user.FirstName, user.LastName, user.Email, user.DateCreated)
+	if saveErr != nil {
+		return errors.NewInternalServerError(fmt.Sprintf("error when trying to save user: %s", err.Error()))
+	}
+
+	userId, err := insertResult.LastInsertId()
+	if err != nil {
+		return errors.NewInternalServerError(fmt.Sprintf("error when trying to save user: %s", userId))
+	}
+	user.Id = userId
+
 	return nil
 }
