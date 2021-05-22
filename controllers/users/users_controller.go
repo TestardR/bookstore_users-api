@@ -19,20 +19,6 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	/*
-		Above code is equivalent
-		bytes, err := ioutil.ReadAll(c.Request.Body)
-		if err != nil {
-			// TODO: Handle error
-			return
-		}
-
-		if err := json.Unmarshal(bytes, &user); err != nil {
-			// TODO: Handle json error
-			return
-		}
-	*/
-
 	result, err := services.CreateUser(user)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, err)
