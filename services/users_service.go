@@ -7,7 +7,20 @@ import (
 	"github.com/TestardR/bookstore_users-api/utils/errors"
 )
 
-func GetUser(userId int64) (*users.User, *errors.RestErr) {
+var (
+	UsersService usersServiceInterface = &usersService{}
+)
+
+type usersService struct{}
+type usersServiceInterface interface {
+	Get(int64) (*users.User, *errors.RestErr)
+	Create(users.User) (*users.User, *errors.RestErr)
+	Update(bool, users.User) (*users.User, *errors.RestErr)
+	Delete(int64) *errors.RestErr
+	Search(string) (users.Users, *errors.RestErr)
+}
+
+func (s *usersService) Get(userId int64) (*users.User, *errors.RestErr) {
 	user := &users.User{Id: userId}
 	if err := user.Get(); err != nil {
 		return nil, err
@@ -15,7 +28,7 @@ func GetUser(userId int64) (*users.User, *errors.RestErr) {
 	return user, nil
 }
 
-func CreateUser(user users.User) (*users.User, *errors.RestErr) {
+func (s *usersService) Create(user users.User) (*users.User, *errors.RestErr) {
 	if err := user.Validate(); err != nil {
 		return nil, err
 	}
@@ -30,8 +43,8 @@ func CreateUser(user users.User) (*users.User, *errors.RestErr) {
 	return &user, nil
 }
 
-func UpdateUser(isPartial bool, user users.User) (*users.User, *errors.RestErr) {
-	current, err := GetUser(user.Id)
+func (s *usersService) Update(isPartial bool, user users.User) (*users.User, *errors.RestErr) {
+	current, err := s.Get(user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -58,12 +71,12 @@ func UpdateUser(isPartial bool, user users.User) (*users.User, *errors.RestErr) 
 	return current, nil
 }
 
-func DeleteUser(userId int64) *errors.RestErr {
+func (s *usersService) Delete(userId int64) *errors.RestErr {
 	user := &users.User{Id: userId}
 	return user.Delete()
 }
 
-func SearchUser(status string) (users.Users, *errors.RestErr) {
+func (s *usersService) Search(status string) (users.Users, *errors.RestErr) {
 	dao := &users.User{}
 	return dao.FindByStatus(status)
 }
